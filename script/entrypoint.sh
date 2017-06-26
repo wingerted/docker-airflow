@@ -4,9 +4,9 @@ AIRFLOW_HOME="/usr/local/airflow"
 CMD="airflow"
 TRY_LOOP="20"
 
-: ${REDIS_HOST:="redis"}
-: ${REDIS_PORT:="6379"}
-: ${REDIS_PASSWORD:=""}
+: ${RABBITMQ_HOST:="rabbitmq"}
+: ${RABBITMQ_CREDS:="airflow:airflow"}
+: ${RABBITMQ_PORT:="15672"}
 
 : ${POSTGRES_HOST:="postgres"}
 : ${POSTGRES_PORT:="5432"}
@@ -54,22 +54,22 @@ fi
 # Update configuration depending the type of Executor
 if [ "$EXECUTOR" = "Celery" ]
 then
-  # Wait for Redis
+  # Wait for RabbitMQ
   if [ "$1" = "webserver" ] || [ "$1" = "worker" ] || [ "$1" = "scheduler" ] || [ "$1" = "flower" ] ; then
     j=0
-    while ! nc -z $REDIS_HOST $REDIS_PORT >/dev/null 2>&1 < /dev/null; do
+    while ! curl -sI -u $RABBITMQ_CREDS http://$RABBITMQ_HOST:$RABBITMQ_PORT/api/whoami | grep '200 OK'; do
       j=$((j+1))
       if [ $j -ge $TRY_LOOP ]; then
-        echo "$(date) - $REDIS_HOST still not reachable, giving up"
+        echo "$(date) - $RABBITMQ_HOST still not reachable, giving up"
         exit 1
       fi
-      echo "$(date) - waiting for Redis... $j/$TRY_LOOP"
+      echo "$(date) - waiting for RabbitMQ... $j/$TRY_LOOP"
       sleep 5
     done
   fi
   sed -i "s#celery_result_backend = db+postgresql://airflow:airflow@postgres/airflow#celery_result_backend = db+postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
   sed -i "s#sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@postgres/airflow#sql_alchemy_conn = postgresql+psycopg2://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
-  sed -i "s#broker_url = redis://redis:6379/1#broker_url = redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1#" "$AIRFLOW_HOME"/airflow.cfg
+  sed -i "s#broker_url = amqp://airflow:airflow@rabbitmq:15672/airflow#broker_url = amqp://$RABBITMQ_CREDS@$RABBITMQ_HOST:$RABBITMQ_PORT/airflow#" "$AIRFLOW_HOME/airflow.cfg"
   if [ "$1" = "webserver" ]; then
     echo "Initialize database..."
     $CMD initdb
@@ -82,7 +82,7 @@ elif [ "$EXECUTOR" = "Local" ]
 then
   sed -i "s/executor = CeleryExecutor/executor = LocalExecutor/" "$AIRFLOW_HOME"/airflow.cfg
   sed -i "s#sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@postgres/airflow#sql_alchemy_conn = postgresql+psycopg2://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB#" "$AIRFLOW_HOME"/airflow.cfg
-  sed -i "s#broker_url = redis://redis:6379/1#broker_url = redis://$REDIS_PREFIX$REDIS_HOST:$REDIS_PORT/1#" "$AIRFLOW_HOME"/airflow.cfg
+  sed -i "s#broker_url = amqp://airflow:airflow@rabbitmq:15672/airflow#broker_url = amqp://$RABBITMQ_CREDS@$RABBITMQ_HOST:$RABBITMQ_PORT/airflow#" "$AIRFLOW_HOME"/airflow.cfg
   echo "Initialize database..."
   $CMD initdb
   exec $CMD webserver &
