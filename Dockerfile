@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV TERM linux
 
 # Airflow
-ARG AIRFLOW_VERSION=1.8.1
+ARG AIRFLOW_VERSION=1.8.2rc1
 ARG AIRFLOW_HOME=/usr/local/airflow
 
 # Define en_US.
@@ -44,6 +44,7 @@ RUN set -ex \
         apt-utils \
         curl \
         netcat \
+        libmysqlclient-dev \
         locales \
     && sed -i 's/^# en_US.UTF-8 UTF-8$/en_US.UTF-8 UTF-8/g' /etc/locale.gen \
     && locale-gen \
@@ -55,7 +56,7 @@ RUN set -ex \
     && pip install pyOpenSSL \
     && pip install ndg-httpsclient \
     && pip install pyasn1 \
-    && pip install apache-airflow[crypto,celery,postgres,hive,hdfs,jdbc]==$AIRFLOW_VERSION \
+    && pip install apache-airflow[crypto,celery,mysql,hdfs]==$AIRFLOW_VERSION \
     && pip install celery==4.0.2 \
     && apt-get remove --purge -yqq $buildDeps \
     && apt-get clean \
