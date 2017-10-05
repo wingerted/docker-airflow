@@ -1,18 +1,18 @@
-# VERSION 1.8.1
+# VERSION 1.8.1-1
 # AUTHOR: Matthieu "Puckel_" Roisil
 # DESCRIPTION: Basic Airflow container
 # BUILD: docker build --rm -t puckel/docker-airflow .
 # SOURCE: https://github.com/puckel/docker-airflow
 
-FROM debian:jessie
-MAINTAINER Winger_
+FROM python:3.6-slim
+MAINTAINER Winger
 
 # Never prompts the user for choices on installation/configuration of packages
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM linux
 
 # Airflow
-ARG AIRFLOW_VERSION=1.8.2rc1
+ARG AIRFLOW_VERSION=1.8.2
 ARG AIRFLOW_HOME=/usr/local/airflow
 
 # Define en_US.
@@ -25,7 +25,7 @@ ENV LC_ALL en_US.UTF-8
 
 RUN set -ex \
     && buildDeps=' \
-        python-dev \
+        python3-dev \
         libkrb5-dev \
         libsasl2-dev \
         libssl-dev \
@@ -39,8 +39,8 @@ RUN set -ex \
     && apt-get update -yqq \
     && apt-get install -yqq --no-install-recommends \
         $buildDeps \
-        python-pip \
-        python-requests \
+        python3-pip \
+        python3-requests \
         apt-utils \
         curl \
         netcat \
@@ -50,7 +50,7 @@ RUN set -ex \
     && locale-gen \
     && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
     && useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow \
-    && python -m pip install -U pip \
+    && python -m pip install -U pip setuptools wheel \
     && pip install Cython \
     && pip install pytz \
     && pip install pyOpenSSL \
@@ -58,7 +58,7 @@ RUN set -ex \
     && pip install pyasn1 \
     && pip install apache-airflow[crypto,celery,mysql,hdfs]==$AIRFLOW_VERSION \
     && pip install celery==4.0.2 \
-    && apt-get remove --purge -yqq $buildDeps \
+    && apt-get purge --auto-remove -yqq $buildDeps \
     && apt-get clean \
     && rm -rf \
         /var/lib/apt/lists/* \
