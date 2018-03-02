@@ -5,6 +5,7 @@ TRY_LOOP="20"
 : ${RABBITMQ_HOST:="rabbitmq"}
 : ${RABBITMQ_CREDS:="airflow:airflow"}
 : ${RABBITMQ_PORT:="15672"}
+: ${RABBITMQ_BROKER_PORT:="5672"}
 
 : ${MYSQL_HOST:="mysql"}
 : ${MYSQL_PORT:="3306"}
@@ -54,8 +55,7 @@ wait_for_port() {
 
 wait_for_rabbitmq() {
 # Wait for RabbitMQ if we are using it
-  if [ "$AIRFLOW__CORE__EXECUTOR" = "CeleryExecutor" ]
-  then
+  if [ "$AIRFLOW__CORE__EXECUTOR" = "CeleryExecutor" ]; then
     j=0
     while ! curl -sI -u $RABBITMQ_CREDS http://$RABBITMQ_HOST:$RABBITMQ_PORT/api/whoami | grep '200 OK'; do
       j=$((j+1))
@@ -66,10 +66,11 @@ wait_for_rabbitmq() {
       echo "$(date) - waiting for RabbitMQ... $j/$TRY_LOOP"
       sleep 5
     done
+  fi
 }
 
 AIRFLOW__CORE__SQL_ALCHEMY_CONN="mysql+mysqldb://$MYSQL_USER:$MYSQL_PASSWORD@$MYSQL_HOST:$MYSQL_PORT/$MYSQL_DB"
-AIRFLOW__CELERY__BROKER_URL="amqp://$RABBITMQ_CREDS@$RABBITMQ_HOST:$RABBITMQ_PORT/airflow"
+AIRFLOW__CELERY__BROKER_URL="amqp://$RABBITMQ_CREDS@$RABBITMQ_HOST:$RABBITMQ_BROKER_PORT/airflow"
 AIRFLOW__CELERY__CELERY_RESULT_BACKEND="db+mysql://$MYSQL_USER:$MYSQL_PASSWORD@$MYSQL_HOST:$MYSQL_PORT/$MYSQL_DB"
 
 case "$1" in
